@@ -5,8 +5,9 @@ Help Bot for Twitter
 ---
 ```
 $ pip3 install pandas
-$ pip3 install nest_asyncio
+$ pip3 install nest_asyncio 
 # install Twint
 $ pip3 install --user --upgrade git+https://github.com/twintproject/twint.git@origin/master#egg=twint
+$ pip install python-twitter
 
 ```
