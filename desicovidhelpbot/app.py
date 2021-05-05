@@ -3,26 +3,45 @@ import pandas as pd
 import nest_asyncio
 nest_asyncio.apply()
 import time
+import os
 import twitter
+from flask import Flask, request, make_response, jsonify
 
-from passwords import CONSUMER_KEY, CONSUMER_SECRET, ACCESS_TOKEN_KEY, ACCESS_TOKEN_SECRET
-
+app = Flask("desicovidhelpbot")
 api = twitter.Api(
-    consumer_key=CONSUMER_KEY,
-    consumer_secret=CONSUMER_SECRET,
-    access_token_key=ACCESS_TOKEN_KEY,
-    access_token_secret=ACCESS_TOKEN_SECRET
+    consumer_key=os.getenv("CONSUMER_KEY"),
+    consumer_secret=os.getenv("CONSUMER_SECRET"),
+    access_token_key=os.getenv("ACCESS_TOKEN_KEY"),
+    access_token_secret=os.getenv("ACCESS_TOKEN_SECRET")
 )
 
 
-cityDf = pd.read_csv('CityWiseData - indian-cities-Latitude-Longitude.csv')
+cityDf = pd.read_csv('desicovidhelpbot/CityWiseData - indian-cities-Latitude-Longitude.csv')
 indian_cities = cityDf['City'].tolist()
 
-def get_tweet(query, Location = None, Since='2021-04-01'):
+@app.route("/getTweets", methods=["POST"])
+def endpoint():
+    query = request.get_json().get("query")
+    location = request.get_json().get("location")
+    since = request.get_json().get("since")
+    output = {"status": "Success"}
+    try:
+        if since != None:
+            get_tweet(query, Location = location, Since=since)
+        else:
+            get_tweet(query, Location = location)
+    except:
+        output = {"status": "Failure"}
+
+    return make_response(jsonify(output))
+
+
+def get_tweet_csv(query, Location = None, Since='2021-04-01'):
     c = twint.Config()
     c.Search = query
     c.Since = Since
     c.Lang = "en"
+    c.Limit = 20
     # c.Geo = 
     c.Store_csv = True
     loc = 'All' if Location == None else Location
@@ -52,15 +71,8 @@ def post_reply(tweetID, text):
     in_reply_to_status_id=tweetID,
     auto_populate_reply_metadata=True)
 
-def get_mentions(Location = None, Since = '2021-04-01' ):
+def get_mentions(Location = None, Since = '2021-04-01'):
     pass
 
 if __name__ == '__main__':
-    import sys
-    # qstring = sys.argv[1]
-    # location = sys.argv[2]
-    # date = sys.argv[3]
-    # get_tweet(qstring, location, date)
-    username = sys.argv[1]
-    get_follower_count(username)
-    post_reply(1388878996981518339, "lead found 2")
+    app.run(host="0.0.0.0", port=8080, debug=True)
