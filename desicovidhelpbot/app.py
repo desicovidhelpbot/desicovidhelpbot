@@ -1,7 +1,7 @@
 import twint
 import pandas as pd
-import nest_asyncio
-nest_asyncio.apply()
+import requests
+import json
 import time
 import os
 import twitter
@@ -27,9 +27,9 @@ def endpoint():
     output = {"status": "Success"}
     try:
         if since != None:
-            get_tweet(query, Location = location, Since=since)
+            get_tweet_memory(query, Location = location, Since=since)
         else:
-            get_tweet(query, Location = location)
+            get_tweet_memory(query, Location = location)
     except:
         output = {"status": "Failure"}
 
@@ -61,10 +61,47 @@ def get_tweet_csv(query, Location = None, Since='2021-04-01'):
     df.drop_duplicates(inplace=True)
     df.to_csv(filename_final, index=False)
 
+def get_tweet_memory(query, Location = None, Since='2021-04-01'):
+    c = twint.Config()
+    c.Search = query
+    c.Since = Since
+    c.Lang = "en"
+    c.Limit = 20
+    c.Store_object = True
+    # c.Geo = 
+    loc = 'All' if Location == None else Location
+    
+    tweets = []
+    if Location != None:
+        c.Near = Location    
+        twint.run.Search(c)
+        tweets += twint.output.tweets_list
+    else:
+        for city in indian_cities:
+            c.Near = city
+            twint.run.Search(c)
+            tweets += twint.output.tweets_list
+
+    filter_keywords = ["not verified" , "unverified"]
+    def filterFunction(text):
+        for kw in filter_keywords:
+            if kw in text:
+                return False
+        else:
+            return True
+    filteredTweets = list(filter(lambda t: filterFunction(t.tweet), tweets))
+    FOLLOWERS_LIMIT = 30
+    followerFilteredTweets = list(filter(lambda u: get_follower_count(u.username) >= FOLLOWERS_LIMIT, filteredTweets))
+
 def get_follower_count(username):
-    friends = api.GetFollowers(screen_name=username)
-    friendList = [u.name for u in friends]
-    return len(friendList)
+    url = "https://api.twitter.com/1.1/users/show.json"
+    querystring = {"screen_name":username}
+    payload = ""
+    headers = {
+        'authorization': "Bearer {}".format(os.getenv("BEARER_TOKEN"))
+    }
+    response = requests.request("GET", url, data=payload, headers=headers, params=querystring)
+    return json.loads(response.text).get('followers_count')
 
 def post_reply(tweetID, text):
     api.PostUpdate(status = text, 
